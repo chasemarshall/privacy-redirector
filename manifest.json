@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
-  "name": "YouTube to Piped Redirector",
+  "name": "Privacy Redirector",
   "version": "1.0",
-  "description": "Redirects YouTube URLs to Piped and removes YouTube entries from history",
+  "description": "Redirects YouTube URLs to Piped and Reddit to custom instances while removing entries from history",
   
   "permissions": [
     "webRequest",
