@@ -9,6 +9,7 @@
     "webRequestBlocking",
     "history",
     "tabs",
+    "storage",
     "*://youtube.com/*",
     "*://www.youtube.com/*",
     "*://youtu.be/*",
@@ -22,6 +23,11 @@
   "background": {
     "scripts": ["background.js"],
     "persistent": true
+  },
+  
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
   },
   
   "icons": {
