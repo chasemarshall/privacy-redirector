@@ -1,24 +1,30 @@
-// Options page script for Privacy Redirector
+// Options page script for Privacy Redirector (Firefox compatible)
 
 // Default URLs
 const DEFAULT_PIPED_URL = 'https://piped.withmilo.xyz';
 const DEFAULT_REDDIT_URL = 'https://reddit.withmilo.xyz';
 const DEFAULT_BLOCK_ALL = false;
 
-// Load saved settings
+// Load saved settings (Firefox compatible)
 function loadSettings() {
-    chrome.storage.sync.get({
+    browser.storage.sync.get({
         pipedUrl: DEFAULT_PIPED_URL,
         redditUrl: DEFAULT_REDDIT_URL,
         blockAllYoutube: DEFAULT_BLOCK_ALL
-    }, function(items) {
+    }).then(function(items) {
         document.getElementById('pipedUrl').value = items.pipedUrl;
         document.getElementById('redditUrl').value = items.redditUrl;
         document.getElementById('blockAllYoutube').checked = items.blockAllYoutube;
+    }).catch(function(error) {
+        console.log('Error loading settings:', error);
+        // Use defaults if loading fails
+        document.getElementById('pipedUrl').value = DEFAULT_PIPED_URL;
+        document.getElementById('redditUrl').value = DEFAULT_REDDIT_URL;
+        document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
     });
 }
 
-// Save settings
+// Save settings (Firefox compatible)
 function saveSettings() {
     const pipedUrl = document.getElementById('pipedUrl').value.trim();
     const redditUrl = document.getElementById('redditUrl').value.trim();
@@ -30,27 +36,31 @@ function saveSettings() {
         return;
     }
     
-    chrome.storage.sync.set({
+    browser.storage.sync.set({
         pipedUrl: pipedUrl,
         redditUrl: redditUrl,
         blockAllYoutube: blockAllYoutube
-    }, function() {
+    }).then(function() {
         showStatus('Settings saved successfully!', true);
+    }).catch(function(error) {
+        showStatus('Error saving settings: ' + error.message, false);
     });
 }
 
-// Reset to defaults
+// Reset to defaults (Firefox compatible)
 function resetSettings() {
     document.getElementById('pipedUrl').value = DEFAULT_PIPED_URL;
     document.getElementById('redditUrl').value = DEFAULT_REDDIT_URL;
     document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
     
-    chrome.storage.sync.set({
+    browser.storage.sync.set({
         pipedUrl: DEFAULT_PIPED_URL,
         redditUrl: DEFAULT_REDDIT_URL,
         blockAllYoutube: DEFAULT_BLOCK_ALL
-    }, function() {
+    }).then(function() {
         showStatus('Settings reset to defaults!', true);
+    }).catch(function(error) {
+        showStatus('Error resetting settings: ' + error.message, false);
     });
 }
 
