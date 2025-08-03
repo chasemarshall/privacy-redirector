@@ -12,7 +12,11 @@
     "*://youtube.com/*",
     "*://www.youtube.com/*",
     "*://youtu.be/*",
-    "*://m.youtube.com/*"
+    "*://m.youtube.com/*",
+    "*://reddit.com/*",
+    "*://www.reddit.com/*",
+    "*://old.reddit.com/*",
+    "*://new.reddit.com/*"
   ],
   
   "background": {
