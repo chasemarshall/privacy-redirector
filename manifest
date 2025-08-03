@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+  "name": "YouTube to Piped Redirector",
+  "version": "1.0",
+  "description": "Redirects YouTube URLs to Piped and removes YouTube entries from history",
+  
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "history",
+    "tabs",
+    "*://youtube.com/*",
+    "*://www.youtube.com/*",
+    "*://youtu.be/*",
+    "*://m.youtube.com/*"
+  ],
+  
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
