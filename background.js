@@ -1,4 +1,19 @@
-// Privacy Redirector - YouTube to Piped, Reddit to Redlib
+// Privacy Redirector - YouTube to Piped, Reddit to custom instances
+// With customizable URLs
+
+// Default URLs
+const DEFAULT_PIPED_URL = 'https://piped.withmilo.xyz';
+const DEFAULT_REDDIT_URL = 'https://reddit.withmilo.xyz';
+
+// Get stored settings or use defaults
+async function getSettings() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get({
+      pipedUrl: DEFAULT_PIPED_URL,
+      redditUrl: DEFAULT_REDDIT_URL
+    }, resolve);
+  });
+}
 
 // Function to extract video ID from various YouTube URL formats
 function extractVideoId(url) {
@@ -23,15 +38,17 @@ function extractPlaylistId(url) {
 }
 
 // Function to build redirect URL based on platform
-function buildRedirectUrl(originalUrl) {
+async function buildRedirectUrl(originalUrl) {
+  const settings = await getSettings();
+  
   // YouTube redirects
   if (isYouTubeUrl(originalUrl)) {
-    return buildPipedUrl(originalUrl);
+    return buildPipedUrl(originalUrl, settings.pipedUrl);
   }
   
   // Reddit redirects
   if (isRedditUrl(originalUrl)) {
-    return buildRedlibUrl(originalUrl);
+    return buildRedditUrl(originalUrl, settings.redditUrl);
   }
   
   return null;
@@ -48,17 +65,23 @@ function isRedditUrl(url) {
   return /^https?:\/\/(www\.|old\.|new\.)?reddit\.com\//.test(url);
 }
 
-// Function to build Reddit -> Redlib URL
-function buildRedlibUrl(originalUrl) {
-  // Replace reddit domain with redlib
-  return originalUrl.replace(/^https?:\/\/(www\.|old\.|new\.)?reddit\.com/, 'https://redlib.withmilo.xyz');
+// Function to build Reddit URL with custom instance
+function buildRedditUrl(originalUrl, redditInstance) {
+  // Remove trailing slash from instance URL if present
+  const cleanInstance = redditInstance.replace(/\/$/, '');
+  
+  // Replace reddit domain with custom instance
+  return originalUrl.replace(/^https?:\/\/(www\.|old\.|new\.)?reddit\.com/, cleanInstance);
 }
-// Function to build Piped URL
-function buildPipedUrl(originalUrl) {
+// Function to build Piped URL with custom instance
+function buildPipedUrl(originalUrl, pipedInstance) {
+  // Remove trailing slash from instance URL if present
+  const cleanInstance = pipedInstance.replace(/\/$/, '');
+  
   const videoId = extractVideoId(originalUrl);
   const playlistId = extractPlaylistId(originalUrl);
   
-  let pipedUrl = 'https://piped.withmilo.xyz';
+  let pipedUrl = cleanInstance;
   
   if (videoId) {
     pipedUrl += '/watch?v=' + videoId;
@@ -103,18 +126,19 @@ function removeFromHistory(url) {
 
 // Set up request blocking/redirecting
 chrome.webRequest.onBeforeRequest.addListener(
-  function(details) {
+  async function(details) {
     const originalUrl = details.url;
     
     // Skip if it's already a privacy-friendly URL or not a main frame request
-    if ((originalUrl.includes('piped.withmilo.xyz') || 
-         originalUrl.includes('redlib.withmilo.xyz')) || 
+    const settings = await getSettings();
+    if ((originalUrl.includes(settings.pipedUrl.replace(/^https?:\/\//, '')) || 
+         originalUrl.includes(settings.redditUrl.replace(/^https?:\/\//, ''))) || 
          details.type !== 'main_frame') {
       return;
     }
     
     // Check if it's a URL we want to redirect
-    const redirectUrl = buildRedirectUrl(originalUrl);
+    const redirectUrl = await buildRedirectUrl(originalUrl);
     
     if (redirectUrl) {
       
@@ -147,12 +171,14 @@ chrome.webRequest.onBeforeRequest.addListener(
 );
 
 // Alternative approach: Listen for navigation completed and clean up history
-chrome.webNavigation.onCompleted.addListener(function(details) {
+chrome.webNavigation.onCompleted.addListener(async function(details) {
   if (details.frameId === 0) { // Main frame only
     const url = details.url;
+    const settings = await getSettings();
     
     // If we successfully navigated to a privacy-friendly URL, clean up original URLs from history
-    if (url.includes('piped.withmilo.xyz') || url.includes('redlib.withmilo.xyz')) {
+    if (url.includes(settings.pipedUrl.replace(/^https?:\/\//, '')) || 
+        url.includes(settings.redditUrl.replace(/^https?:\/\//, ''))) {
       // Search for recent original URLs in history and remove them
       const searchPatterns = [
         'youtube.com',
@@ -177,4 +203,31 @@ chrome.webNavigation.onCompleted.addListener(function(details) {
   }
 });
 
-console.log('Privacy Redirector loaded - YouTube->Piped, Reddit->Redlib');
+// Optional: Block ALL YouTube requests (images, scripts, etc.) - uncomment if desired
+/*
+chrome.webRequest.onBeforeRequest.addListener(
+  function(details) {
+    const url = details.url;
+    
+    // Block any request to YouTube domains (except if already on Piped)
+    if ((url.includes('youtube.com') || url.includes('youtu.be')) && 
+        !url.includes('piped')) {
+      console.log('Blocking YouTube resource:', url);
+      return { cancel: true };
+    }
+  },
+  {
+    urls: [
+      "*://youtube.com/*",
+      "*://www.youtube.com/*", 
+      "*://youtu.be/*",
+      "*://m.youtube.com/*",
+      "*://*.youtube.com/*",
+      "*://*.youtu.be/*"
+    ]
+  },
+  ["blocking"]
+);
+*/
+
+console.log('Privacy Redirector loaded - Customizable YouTube->Piped, Reddit instances');
