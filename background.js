@@ -5,7 +5,13 @@
 const DEFAULT_PIPED_URL = 'https://piped.withmilo.xyz';
 const DEFAULT_REDDIT_URL = 'https://reddit.withmilo.xyz';
 
-// Get stored settings or use defaults (Firefox compatible)
+// Fallback storage for when browser.storage fails (temporary addon)
+let fallbackSettings = {
+  pipedUrl: DEFAULT_PIPED_URL,
+  redditUrl: DEFAULT_REDDIT_URL
+};
+
+// Get stored settings or use defaults (Firefox compatible with fallback)
 async function getSettings() {
   try {
     const result = await browser.storage.sync.get({
@@ -14,11 +20,20 @@ async function getSettings() {
     });
     return result;
   } catch (error) {
-    console.log('Error getting settings, using defaults:', error);
-    return {
-      pipedUrl: DEFAULT_PIPED_URL,
-      redditUrl: DEFAULT_REDDIT_URL
-    };
+    console.log('Storage API not available (temporary addon), using fallback settings:', error);
+    return fallbackSettings;
+  }
+}
+
+// Set settings with fallback
+async function setSettings(settings) {
+  try {
+    await browser.storage.sync.set(settings);
+    return true;
+  } catch (error) {
+    console.log('Storage API not available, using fallback:', error);
+    fallbackSettings = { ...fallbackSettings, ...settings };
+    return false;
   }
 }
 
@@ -219,3 +234,14 @@ if (browser.webNavigation && browser.webNavigation.onCompleted) {
 }
 
 console.log('Privacy Redirector loaded - Firefox WebExtensions API version');
+
+// Listen for messages from options page (for temporary addon fallback)
+if (browser.runtime && browser.runtime.onMessage) {
+  browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+    if (message.action === 'updateSettings') {
+      console.log('Received settings update from options page:', message.settings);
+      fallbackSettings = { ...fallbackSettings, ...message.settings };
+      return Promise.resolve({ success: true });
+    }
+  });
+}
