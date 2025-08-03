@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Privacy Redirector",
-  "version": "1.0",
+  "version": "1.1.0",
   "description": "Redirects YouTube URLs to Piped and Reddit to custom instances while removing entries from history",
   
   "permissions": [
@@ -28,11 +28,5 @@
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
-  },
-  
-  "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
   }
 }
