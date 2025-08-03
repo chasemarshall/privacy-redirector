@@ -1,18 +1,25 @@
 // Privacy Redirector - YouTube to Piped, Reddit to custom instances
-// With customizable URLs
+// Firefox WebExtensions API compatible version
 
 // Default URLs
 const DEFAULT_PIPED_URL = 'https://piped.withmilo.xyz';
 const DEFAULT_REDDIT_URL = 'https://reddit.withmilo.xyz';
 
-// Get stored settings or use defaults
+// Get stored settings or use defaults (Firefox compatible)
 async function getSettings() {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get({
+  try {
+    const result = await browser.storage.sync.get({
       pipedUrl: DEFAULT_PIPED_URL,
       redditUrl: DEFAULT_REDDIT_URL
-    }, resolve);
-  });
+    });
+    return result;
+  } catch (error) {
+    console.log('Error getting settings, using defaults:', error);
+    return {
+      pipedUrl: DEFAULT_PIPED_URL,
+      redditUrl: DEFAULT_REDDIT_URL
+    };
+  }
 }
 
 // Function to extract video ID from various YouTube URL formats
@@ -73,6 +80,7 @@ function buildRedditUrl(originalUrl, redditInstance) {
   // Replace reddit domain with custom instance
   return originalUrl.replace(/^https?:\/\/(www\.|old\.|new\.)?reddit\.com/, cleanInstance);
 }
+
 // Function to build Piped URL with custom instance
 function buildPipedUrl(originalUrl, pipedInstance) {
   // Remove trailing slash from instance URL if present
@@ -113,24 +121,26 @@ function buildPipedUrl(originalUrl, pipedInstance) {
   return pipedUrl;
 }
 
-// Function to remove URLs from history
+// Function to remove URLs from history (Firefox compatible)
 function removeFromHistory(url) {
-  chrome.history.deleteUrl({ url: url }, function() {
-    if (chrome.runtime.lastError) {
-      console.log('Error removing from history:', chrome.runtime.lastError);
-    } else {
+  if (browser.history && browser.history.deleteUrl) {
+    browser.history.deleteUrl({ url: url }).then(() => {
       console.log('Removed from history:', url);
-    }
-  });
+    }).catch((error) => {
+      console.log('Error removing from history:', error);
+    });
+  }
 }
 
-// Set up request blocking/redirecting
-chrome.webRequest.onBeforeRequest.addListener(
+// Set up request blocking/redirecting (Firefox compatible)
+browser.webRequest.onBeforeRequest.addListener(
   async function(details) {
     const originalUrl = details.url;
     
-    // Skip if it's already a privacy-friendly URL or not a main frame request
+    // Get settings first
     const settings = await getSettings();
+    
+    // Skip if it's already a privacy-friendly URL or not a main frame request
     if ((originalUrl.includes(settings.pipedUrl.replace(/^https?:\/\//, '')) || 
          originalUrl.includes(settings.redditUrl.replace(/^https?:\/\//, ''))) || 
          details.type !== 'main_frame') {
@@ -141,15 +151,14 @@ chrome.webRequest.onBeforeRequest.addListener(
     const redirectUrl = await buildRedirectUrl(originalUrl);
     
     if (redirectUrl) {
-      
-      // Remove the original YouTube URL from history after a short delay
-      // We need a delay because the history entry might not exist yet
+      // Remove the original URL from history after redirect
       setTimeout(() => {
         removeFromHistory(originalUrl);
-      }, 1000);
+      }, 100);
       
-      console.log('Redirecting:', originalUrl, '->', redirectUrl);
+      console.log('Blocking and redirecting:', originalUrl, '->', redirectUrl);
       
+      // This completely blocks the original request and redirects
       return {
         redirectUrl: redirectUrl
       };
@@ -170,64 +179,43 @@ chrome.webRequest.onBeforeRequest.addListener(
   ["blocking"]
 );
 
-// Alternative approach: Listen for navigation completed and clean up history
-chrome.webNavigation.onCompleted.addListener(async function(details) {
-  if (details.frameId === 0) { // Main frame only
-    const url = details.url;
-    const settings = await getSettings();
-    
-    // If we successfully navigated to a privacy-friendly URL, clean up original URLs from history
-    if (url.includes(settings.pipedUrl.replace(/^https?:\/\//, '')) || 
-        url.includes(settings.redditUrl.replace(/^https?:\/\//, ''))) {
-      // Search for recent original URLs in history and remove them
-      const searchPatterns = [
-        'youtube.com',
-        'youtu.be',
-        'reddit.com'
-      ];
+// Alternative approach: Listen for navigation completed and clean up history (Firefox compatible)
+if (browser.webNavigation && browser.webNavigation.onCompleted) {
+  browser.webNavigation.onCompleted.addListener(async function(details) {
+    if (details.frameId === 0) { // Main frame only
+      const url = details.url;
+      const settings = await getSettings();
       
-      searchPatterns.forEach(pattern => {
-        chrome.history.search({
-          text: pattern,
-          maxResults: 10,
-          startTime: Date.now() - (5 * 60 * 1000) // Last 5 minutes
-        }, function(results) {
-          results.forEach(item => {
-            if (item.url.includes(pattern)) {
-              removeFromHistory(item.url);
-            }
+      // If we successfully navigated to a privacy-friendly URL, clean up original URLs from history
+      if (url.includes(settings.pipedUrl.replace(/^https?:\/\//, '')) || 
+          url.includes(settings.redditUrl.replace(/^https?:\/\//, ''))) {
+        // Search for recent original URLs in history and remove them
+        const searchPatterns = [
+          'youtube.com',
+          'youtu.be',
+          'reddit.com'
+        ];
+        
+        if (browser.history && browser.history.search) {
+          searchPatterns.forEach(pattern => {
+            browser.history.search({
+              text: pattern,
+              maxResults: 10,
+              startTime: Date.now() - (5 * 60 * 1000) // Last 5 minutes
+            }).then(results => {
+              results.forEach(item => {
+                if (item.url.includes(pattern)) {
+                  removeFromHistory(item.url);
+                }
+              });
+            }).catch(error => {
+              console.log('Error searching history:', error);
+            });
           });
-        });
-      });
+        }
+      }
     }
-  }
-});
+  });
+}
 
-// Optional: Block ALL YouTube requests (images, scripts, etc.) - uncomment if desired
-/*
-chrome.webRequest.onBeforeRequest.addListener(
-  function(details) {
-    const url = details.url;
-    
-    // Block any request to YouTube domains (except if already on Piped)
-    if ((url.includes('youtube.com') || url.includes('youtu.be')) && 
-        !url.includes('piped')) {
-      console.log('Blocking YouTube resource:', url);
-      return { cancel: true };
-    }
-  },
-  {
-    urls: [
-      "*://youtube.com/*",
-      "*://www.youtube.com/*", 
-      "*://youtu.be/*",
-      "*://m.youtube.com/*",
-      "*://*.youtube.com/*",
-      "*://*.youtu.be/*"
-    ]
-  },
-  ["blocking"]
-);
-*/
-
-console.log('Privacy Redirector loaded - Customizable YouTube->Piped, Reddit instances');
+console.log('Privacy Redirector loaded - Firefox WebExtensions API version');
