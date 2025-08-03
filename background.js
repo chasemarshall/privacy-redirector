@@ -1,4 +1,4 @@
-// YouTube to Piped redirector background script
+// Privacy Redirector - YouTube to Piped, Reddit to Redlib
 
 // Function to extract video ID from various YouTube URL formats
 function extractVideoId(url) {
@@ -22,6 +22,37 @@ function extractPlaylistId(url) {
   return match ? match[1] : null;
 }
 
+// Function to build redirect URL based on platform
+function buildRedirectUrl(originalUrl) {
+  // YouTube redirects
+  if (isYouTubeUrl(originalUrl)) {
+    return buildPipedUrl(originalUrl);
+  }
+  
+  // Reddit redirects
+  if (isRedditUrl(originalUrl)) {
+    return buildRedlibUrl(originalUrl);
+  }
+  
+  return null;
+}
+
+// Check if URL is YouTube
+function isYouTubeUrl(url) {
+  return /^https?:\/\/(www\.|m\.)?youtube\.com\//.test(url) || 
+         /^https?:\/\/youtu\.be\//.test(url);
+}
+
+// Check if URL is Reddit
+function isRedditUrl(url) {
+  return /^https?:\/\/(www\.|old\.|new\.)?reddit\.com\//.test(url);
+}
+
+// Function to build Reddit -> Redlib URL
+function buildRedlibUrl(originalUrl) {
+  // Replace reddit domain with redlib
+  return originalUrl.replace(/^https?:\/\/(www\.|old\.|new\.)?reddit\.com/, 'https://redlib.withmilo.xyz');
+}
 // Function to build Piped URL
 function buildPipedUrl(originalUrl) {
   const videoId = extractVideoId(originalUrl);
@@ -75,17 +106,17 @@ chrome.webRequest.onBeforeRequest.addListener(
   function(details) {
     const originalUrl = details.url;
     
-    // Skip if it's already a Piped URL or not a main frame request
-    if (originalUrl.includes('piped.withmilo.xyz') || details.type !== 'main_frame') {
+    // Skip if it's already a privacy-friendly URL or not a main frame request
+    if ((originalUrl.includes('piped.withmilo.xyz') || 
+         originalUrl.includes('redlib.withmilo.xyz')) || 
+         details.type !== 'main_frame') {
       return;
     }
     
-    // Check if it's a YouTube URL we want to redirect
-    const isYouTubeUrl = /^https?:\/\/(www\.|m\.)?youtube\.com\//.test(originalUrl) || 
-                        /^https?:\/\/youtu\.be\//.test(originalUrl);
+    // Check if it's a URL we want to redirect
+    const redirectUrl = buildRedirectUrl(originalUrl);
     
-    if (isYouTubeUrl) {
-      const pipedUrl = buildPipedUrl(originalUrl);
+    if (redirectUrl) {
       
       // Remove the original YouTube URL from history after a short delay
       // We need a delay because the history entry might not exist yet
@@ -93,10 +124,10 @@ chrome.webRequest.onBeforeRequest.addListener(
         removeFromHistory(originalUrl);
       }, 1000);
       
-      console.log('Redirecting:', originalUrl, '->', pipedUrl);
+      console.log('Redirecting:', originalUrl, '->', redirectUrl);
       
       return {
-        redirectUrl: pipedUrl
+        redirectUrl: redirectUrl
       };
     }
   },
@@ -105,7 +136,11 @@ chrome.webRequest.onBeforeRequest.addListener(
       "*://youtube.com/*",
       "*://www.youtube.com/*",
       "*://youtu.be/*",
-      "*://m.youtube.com/*"
+      "*://m.youtube.com/*",
+      "*://reddit.com/*",
+      "*://www.reddit.com/*",
+      "*://old.reddit.com/*",
+      "*://new.reddit.com/*"
     ]
   },
   ["blocking"]
@@ -116,12 +151,13 @@ chrome.webNavigation.onCompleted.addListener(function(details) {
   if (details.frameId === 0) { // Main frame only
     const url = details.url;
     
-    // If we successfully navigated to a Piped URL, clean up any YouTube URLs from history
-    if (url.includes('piped.withmilo.xyz')) {
-      // Search for recent YouTube URLs in history and remove them
+    // If we successfully navigated to a privacy-friendly URL, clean up original URLs from history
+    if (url.includes('piped.withmilo.xyz') || url.includes('redlib.withmilo.xyz')) {
+      // Search for recent original URLs in history and remove them
       const searchPatterns = [
         'youtube.com',
-        'youtu.be'
+        'youtu.be',
+        'reddit.com'
       ];
       
       searchPatterns.forEach(pattern => {
@@ -141,4 +177,4 @@ chrome.webNavigation.onCompleted.addListener(function(details) {
   }
 });
 
-console.log('YouTube to Piped redirector loaded');
+console.log('Privacy Redirector loaded - YouTube->Piped, Reddit->Redlib');
