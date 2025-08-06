@@ -4,11 +4,15 @@
 // Default URLs
 const DEFAULT_PIPED_URL = 'https://piped.withmilo.xyz';
 const DEFAULT_REDDIT_URL = 'https://reddit.withmilo.xyz';
+const DEFAULT_BLOCK_ALL = false;
+const DEFAULT_BLOCK_OTHER = false;
 
 // Fallback storage for when browser.storage fails (temporary addon)
 let fallbackSettings = {
   pipedUrl: DEFAULT_PIPED_URL,
-  redditUrl: DEFAULT_REDDIT_URL
+  redditUrl: DEFAULT_REDDIT_URL,
+  blockAllYoutube: DEFAULT_BLOCK_ALL,
+  blockOtherSites: DEFAULT_BLOCK_OTHER
 };
 
 // Get stored settings or use defaults (Firefox compatible with fallback)
@@ -16,7 +20,9 @@ async function getSettings() {
   try {
     const result = await browser.storage.sync.get({
       pipedUrl: DEFAULT_PIPED_URL,
-      redditUrl: DEFAULT_REDDIT_URL
+      redditUrl: DEFAULT_REDDIT_URL,
+      blockAllYoutube: DEFAULT_BLOCK_ALL,
+      blockOtherSites: DEFAULT_BLOCK_OTHER
     });
     return result;
   } catch (error) {
@@ -78,13 +84,50 @@ async function buildRedirectUrl(originalUrl) {
 
 // Check if URL is YouTube
 function isYouTubeUrl(url) {
-  return /^https?:\/\/(www\.|m\.)?youtube\.com\//.test(url) || 
+  return /^https?:\/\/(www\.|m\.)?youtube\.com\//.test(url) ||
          /^https?:\/\/youtu\.be\//.test(url);
+}
+
+// Check if URL belongs to any YouTube-related domain (videos, images, etc.)
+function isYouTubeResourceUrl(url) {
+  return /^https?:\/\/([^\/]+\.)?(youtube\.com|youtu\.be|ytimg\.com|googlevideo\.com|youtube-nocookie\.com)\//.test(url);
 }
 
 // Check if URL is Reddit
 function isRedditUrl(url) {
   return /^https?:\/\/(www\.|old\.|new\.)?reddit\.com\//.test(url);
+}
+
+// Check if URL is Google
+function isGoogleUrl(url) {
+  return /^https?:\/\/([^\/]+\.)?google\.com\//.test(url);
+}
+
+// Check if URL is a Google search
+function isGoogleSearchUrl(url) {
+  return /^https?:\/\/([^\/]+\.)?google\.com\/(search|$)/.test(url);
+}
+
+// Build DuckDuckGo search URL
+function buildDuckDuckGoUrl(originalUrl) {
+  try {
+    const url = new URL(originalUrl);
+    const query = url.searchParams.get('q');
+    if (query) {
+      return 'https://duckduckgo.com/?q=' + encodeURIComponent(query);
+    }
+  } catch (_) {}
+  return 'https://duckduckgo.com/';
+}
+
+// Check if URL is Twitter/X
+function isTwitterUrl(url) {
+  return /^https?:\/\/(www\.)?(twitter\.com|x\.com)\//.test(url);
+}
+
+// Build Nitter URL
+function buildNitterUrl(originalUrl) {
+  return originalUrl.replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)/, 'https://nitter.net');
 }
 
 // Function to build Reddit URL with custom instance
@@ -151,28 +194,66 @@ function removeFromHistory(url) {
 browser.webRequest.onBeforeRequest.addListener(
   async function(details) {
     const originalUrl = details.url;
-    
+    const requestType = details.type;
+
     // Get settings first
     const settings = await getSettings();
-    
-    // Skip if it's already a privacy-friendly URL or not a main frame request
-    if ((originalUrl.includes(settings.pipedUrl.replace(/^https?:\/\//, '')) || 
-         originalUrl.includes(settings.redditUrl.replace(/^https?:\/\//, ''))) || 
-         details.type !== 'main_frame') {
-      return;
+
+  // Aggressively block all YouTube domains if enabled
+  if (settings.blockAllYoutube && isYouTubeResourceUrl(originalUrl)) {
+    // Allow main frame requests to be redirected but block everything else
+    if (!isYouTubeUrl(originalUrl) || requestType !== 'main_frame') {
+      console.log('Blocking YouTube request:', originalUrl);
+      return { cancel: true };
     }
-    
+  }
+
+    // Block or redirect other non-privacy sites if enabled
+    if (settings.blockOtherSites) {
+      if (isGoogleUrl(originalUrl)) {
+        // Redirect searches to DuckDuckGo, block everything else
+        if (requestType === 'main_frame' && isGoogleSearchUrl(originalUrl)) {
+          const ddgUrl = buildDuckDuckGoUrl(originalUrl);
+          setTimeout(() => { removeFromHistory(originalUrl); }, 100);
+          console.log('Blocking and redirecting:', originalUrl, '->', ddgUrl);
+          return { redirectUrl: ddgUrl };
+        }
+        console.log('Blocking Google request:', originalUrl);
+        return { cancel: true };
+      }
+
+      if (isTwitterUrl(originalUrl)) {
+        if (requestType === 'main_frame') {
+          const nitterUrl = buildNitterUrl(originalUrl);
+          setTimeout(() => { removeFromHistory(originalUrl); }, 100);
+          console.log('Blocking and redirecting:', originalUrl, '->', nitterUrl);
+          return { redirectUrl: nitterUrl };
+        }
+        console.log('Blocking Twitter request:', originalUrl);
+        return { cancel: true };
+      }
+    }
+
+  // Skip if it's already a privacy-friendly URL or not a main frame request
+  if ((originalUrl.includes(settings.pipedUrl.replace(/^https?:\/\//, '')) ||
+       originalUrl.includes(settings.redditUrl.replace(/^https?:\/\//, '')) ||
+       originalUrl.includes('duckduckgo.com') ||
+       originalUrl.includes('nitter.net')) ||
+       requestType !== 'main_frame') {
+    return;
+  }
+
     // Check if it's a URL we want to redirect
     const redirectUrl = await buildRedirectUrl(originalUrl);
-    
+
     if (redirectUrl) {
       // Remove the original URL from history after redirect
       setTimeout(() => {
         removeFromHistory(originalUrl);
       }, 100);
-      
+
       console.log('Blocking and redirecting:', originalUrl, '->', redirectUrl);
-      
+
       // This completely blocks the original request and redirects
       return {
         redirectUrl: redirectUrl
@@ -188,7 +269,19 @@ browser.webRequest.onBeforeRequest.addListener(
       "*://reddit.com/*",
       "*://www.reddit.com/*",
       "*://old.reddit.com/*",
-      "*://new.reddit.com/*"
+      "*://new.reddit.com/*",
+      "*://google.com/*",
+      "*://www.google.com/*",
+      "*://*.google.com/*",
+      "*://twitter.com/*",
+      "*://www.twitter.com/*",
+      "*://*.twitter.com/*",
+      "*://x.com/*",
+      "*://www.x.com/*",
+      "*://*.x.com/*",
+      "*://*.googlevideo.com/*",
+      "*://*.ytimg.com/*",
+      "*://*.youtube-nocookie.com/*"
     ]
   },
   ["blocking"]

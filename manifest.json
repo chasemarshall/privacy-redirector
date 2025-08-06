@@ -14,11 +14,23 @@
     "*://www.youtube.com/*",
     "*://youtu.be/*",
     "*://m.youtube.com/*",
-    "*://reddit.com/*",
-    "*://www.reddit.com/*",
-    "*://old.reddit.com/*",
-    "*://new.reddit.com/*"
-  ],
+      "*://reddit.com/*",
+      "*://www.reddit.com/*",
+      "*://old.reddit.com/*",
+      "*://new.reddit.com/*",
+      "*://google.com/*",
+      "*://www.google.com/*",
+      "*://*.google.com/*",
+      "*://twitter.com/*",
+      "*://www.twitter.com/*",
+      "*://*.twitter.com/*",
+      "*://x.com/*",
+      "*://www.x.com/*",
+      "*://*.x.com/*",
+      "*://*.googlevideo.com/*",
+      "*://*.ytimg.com/*",
+      "*://*.youtube-nocookie.com/*"
+    ],
   
   "background": {
     "scripts": ["background.js"],
