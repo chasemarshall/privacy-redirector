@@ -10,6 +10,7 @@ A Firefox extension that automatically redirects YouTube to Piped and Reddit to 
 - 🗑️ **History cleanup** - Automatically removes original URLs from browser history
 - 🌐 **Universal support** - Works with all YouTube and Reddit URL formats
 - ⚡ **Lightning fast** - Blocks requests before any connection is made
+- 🛑 **Optional Big Tech blocking** - Redirects Google to DuckDuckGo, Twitter to Nitter, and blocks other Google domains
 
 ## 🚀 Quick Installation
 
@@ -37,6 +38,12 @@ A Firefox extension that automatically redirects YouTube to Piped and Reddit to 
 ### Customize URLs
 - **Piped Instance:** Default is `piped.withmilo.xyz` - change to any Piped instance
 - **Reddit Instance:** Default is `reddit.withmilo.xyz` - change to any Reddit alternative
+
+### Block All YouTube Requests
+- Enable **Block ALL YouTube requests** to stop any connections to `youtube.com`, `ytimg.com`, `googlevideo.com`, and related domains, including embedded videos and thumbnails.
+
+### Block Google & Twitter
+- Enable **Block Google, Twitter and other non-privacy sites** to redirect `google.com` searches to DuckDuckGo, `twitter.com` to Nitter, and block other Google-owned domains entirely.
 
 ### Popular Instances
 

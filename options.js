@@ -4,6 +4,7 @@
 const DEFAULT_PIPED_URL = 'https://piped.withmilo.xyz';
 const DEFAULT_REDDIT_URL = 'https://reddit.withmilo.xyz';
 const DEFAULT_BLOCK_ALL = false;
+const DEFAULT_BLOCK_OTHER = false;
 
 // Check if storage is available
 async function isStorageAvailable() {
@@ -25,26 +26,30 @@ async function loadSettings() {
     // Load defaults
     document.getElementById('pipedUrl').value = DEFAULT_PIPED_URL;
     document.getElementById('redditUrl').value = DEFAULT_REDDIT_URL;
-    document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
-    return;
-  }
+      document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
+      document.getElementById('blockOtherSites').checked = DEFAULT_BLOCK_OTHER;
+      return;
+    }
 
   try {
     const items = await browser.storage.sync.get({
       pipedUrl: DEFAULT_PIPED_URL,
       redditUrl: DEFAULT_REDDIT_URL,
-      blockAllYoutube: DEFAULT_BLOCK_ALL
-    });
-    
-    document.getElementById('pipedUrl').value = items.pipedUrl;
-    document.getElementById('redditUrl').value = items.redditUrl;
-    document.getElementById('blockAllYoutube').checked = items.blockAllYoutube;
+        blockAllYoutube: DEFAULT_BLOCK_ALL,
+        blockOtherSites: DEFAULT_BLOCK_OTHER
+      });
+
+      document.getElementById('pipedUrl').value = items.pipedUrl;
+      document.getElementById('redditUrl').value = items.redditUrl;
+      document.getElementById('blockAllYoutube').checked = items.blockAllYoutube;
+      document.getElementById('blockOtherSites').checked = items.blockOtherSites;
   } catch (error) {
     console.log('Error loading settings:', error);
     // Use defaults if loading fails
     document.getElementById('pipedUrl').value = DEFAULT_PIPED_URL;
     document.getElementById('redditUrl').value = DEFAULT_REDDIT_URL;
-    document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
+      document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
+      document.getElementById('blockOtherSites').checked = DEFAULT_BLOCK_OTHER;
   }
 }
 
@@ -52,7 +57,8 @@ async function loadSettings() {
 async function saveSettings() {
   const pipedUrl = document.getElementById('pipedUrl').value.trim();
   const redditUrl = document.getElementById('redditUrl').value.trim();
-  const blockAllYoutube = document.getElementById('blockAllYoutube').checked;
+    const blockAllYoutube = document.getElementById('blockAllYoutube').checked;
+    const blockOtherSites = document.getElementById('blockOtherSites').checked;
   
   // Validate URLs
   if (!isValidUrl(pipedUrl) || !isValidUrl(redditUrl)) {
@@ -73,9 +79,10 @@ async function saveSettings() {
           settings: {
             pipedUrl: pipedUrl,
             redditUrl: redditUrl,
-            blockAllYoutube: blockAllYoutube
-          }
-        });
+              blockAllYoutube: blockAllYoutube,
+              blockOtherSites: blockOtherSites
+            }
+          });
         console.log('Settings sent to background script');
       } catch (error) {
         console.log('Could not send settings to background script:', error);
@@ -85,11 +92,12 @@ async function saveSettings() {
   }
 
   try {
-    await browser.storage.sync.set({
-      pipedUrl: pipedUrl,
-      redditUrl: redditUrl,
-      blockAllYoutube: blockAllYoutube
-    });
+      await browser.storage.sync.set({
+        pipedUrl: pipedUrl,
+        redditUrl: redditUrl,
+        blockAllYoutube: blockAllYoutube,
+        blockOtherSites: blockOtherSites
+      });
     showStatus('Settings saved successfully!', true);
   } catch (error) {
     showStatus('Error saving settings: ' + error.message, false);
@@ -100,7 +108,8 @@ async function saveSettings() {
 async function resetSettings() {
   document.getElementById('pipedUrl').value = DEFAULT_PIPED_URL;
   document.getElementById('redditUrl').value = DEFAULT_REDDIT_URL;
-  document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
+    document.getElementById('blockAllYoutube').checked = DEFAULT_BLOCK_ALL;
+    document.getElementById('blockOtherSites').checked = DEFAULT_BLOCK_OTHER;
   
   const storageAvailable = await isStorageAvailable();
   
@@ -110,11 +119,12 @@ async function resetSettings() {
   }
 
   try {
-    await browser.storage.sync.set({
-      pipedUrl: DEFAULT_PIPED_URL,
-      redditUrl: DEFAULT_REDDIT_URL,
-      blockAllYoutube: DEFAULT_BLOCK_ALL
-    });
+      await browser.storage.sync.set({
+        pipedUrl: DEFAULT_PIPED_URL,
+        redditUrl: DEFAULT_REDDIT_URL,
+        blockAllYoutube: DEFAULT_BLOCK_ALL,
+        blockOtherSites: DEFAULT_BLOCK_OTHER
+      });
     showStatus('Settings reset to defaults!', true);
   } catch (error) {
     showStatus('Error resetting settings: ' + error.message, false);

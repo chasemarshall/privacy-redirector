@@ -150,14 +150,24 @@
             
             <div class="setting-group">
                 <label>
-                    <input type="checkbox" id="blockAllYoutube"> 
+                    <input type="checkbox" id="blockAllYoutube">
                     Block ALL YouTube requests (aggressive mode)
                 </label>
                 <div class="description">
                     When enabled, blocks all connections to YouTube including embedded videos, thumbnails, and scripts. This prevents any data from being sent to YouTube servers.
                 </div>
             </div>
-            
+
+            <div class="setting-group">
+                <label>
+                    <input type="checkbox" id="blockOtherSites">
+                    Block Google, Twitter and other non-privacy sites
+                </label>
+                <div class="description">
+                    Redirects Google searches to DuckDuckGo, Twitter to Nitter, and blocks other Google domains.
+                </div>
+            </div>
+
             <div class="buttons">
                 <button type="submit">Save Settings</button>
                 <button type="button" id="resetBtn" class="secondary">Reset to Defaults</button>
